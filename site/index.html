@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Keeper</title>
+<meta name="description" content="A Mac app for culling a memory card with the keyboard. Arrow through, delete the misses, send the keepers to Photos.">
+<meta property="og:title" content="Keeper">
+<meta property="og:description" content="Sift a whole card before your coffee cools.">
+<meta property="og:image" content="/assets/icon.png">
+<link rel="icon" href="/assets/favicon.png" media="(prefers-color-scheme: light)">
+<link rel="icon" href="/assets/favicon-dark.png" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="/assets/icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #FFFFFF; --panel: #F4F2EF; --card: #FFFFFF; --ink: #000000; --text: #333333; --muted: #7A7A7A; --faint: #B5B5B5;
+    --line: #E2E2E2; --button: #000000; --button-ink: #FFFFFF;
+    --accent: #F06418; --gold: #FFB020; --hot: #D92D20;
+    --ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141414; --panel: #1C1C1C; --card: #262626; --ink: #FFFFFF; --text: #D6D6D6; --muted: #9A9A9A; --faint: #5A5A5A;
+      --line: #2C2C2C; --button: #FFFFFF; --button-ink: #000000;
+      --accent: #FF8A3D; --gold: #FFB84D; --hot: #FF6B5E;
+      color-scheme: dark;
+    }
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); }
+  @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+  #how { scroll-margin-top: 40px; }
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+  img { display: block; }
+  a { color: inherit; text-decoration: none; }
+  ::selection { background: var(--accent); color: #fff; }
+
+  /* Nav */
+  .nav { display: flex; justify-content: space-between; align-items: center; padding: 25px 46px 0; font-size: 16px; line-height: 20px; }
+  .nav-brand { display: flex; align-items: center; gap: 8px; color: var(--text); font-weight: 500; transition: opacity .15s ease; }
+  .nav-brand img { width: 24px; height: 24px; }
+  .nav-brand picture, .footer-brand picture { display: contents; }
+  .nav-brand:hover { opacity: .6; }
+  .nav-source { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; color: var(--muted); transition: color .2s var(--ease), background .2s var(--ease), transform .2s var(--ease); }
+  .nav-source svg { width: 20px; height: 20px; }
+  .nav-source:hover { color: var(--ink); background: color-mix(in srgb, var(--ink) 6%, transparent); transform: rotate(-8deg) scale(1.06); }
+
+  /* Hero */
+  .hero { text-align: center; padding-top: 112px; }
+  .hero h1 { max-width: 900px; margin: 0 auto; font-size: 72px; line-height: 76px; font-weight: 700; letter-spacing: -0.025em; }
+  .hero .sub { max-width: 640px; margin: 20px auto 0; font-size: 24px; line-height: 32px; font-weight: 400; color: var(--muted); letter-spacing: -0.005em; }
+  .buttons { display: flex; justify-content: center; gap: 14px; margin-top: 55px; }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 9px; height: 53px; border-radius: 999px;
+    font-size: 15px; font-weight: 500; white-space: nowrap; transition: transform .2s var(--ease);
+  }
+  .btn:hover { transform: scale(1.03); }
+  .btn:active { transform: scale(.97); }
+  .btn svg { width: 18px; height: 18px; }
+  .btn-get { width: 200px; background: var(--button); color: var(--button-ink); position: relative; overflow: hidden; isolation: isolate; }
+  .btn-get span, .btn-get svg { position: relative; }
+  .btn-secondary { width: 195px; background: var(--bg); color: var(--ink); border: 1.5px solid var(--line); }
+
+  /* Hover: a roll of shots flashes through the fill, like holding the arrow key. */
+  .btn-get::before { content: ''; position: absolute; inset: 0; z-index: -1; opacity: 0; background: url('/assets/shots/1.jpg') center / cover no-repeat; }
+  .btn-get::after { content: ''; position: absolute; inset: 0; z-index: -1; background: rgba(0,0,0,.35); opacity: 0; }
+  @media (hover: hover) and (prefers-reduced-motion: no-preference) {
+    .btn-get:hover::before { opacity: 1; animation: flash .8s step-end infinite; }
+    .btn-get:hover::after { opacity: 1; }
+    .btn-get:hover { color: #fff; }
+  }
+  @keyframes flash {
+    0%    { background-image: url('/assets/shots/1.jpg'); }
+    12.5% { background-image: url('/assets/shots/2.jpg'); }
+    25%   { background-image: url('/assets/shots/3.jpg'); }
+    37.5% { background-image: url('/assets/shots/4.jpg'); }
+    50%   { background-image: url('/assets/shots/5.jpg'); }
+    62.5% { background-image: url('/assets/shots/7.jpg'); }
+    75%   { background-image: url('/assets/shots/8.jpg'); }
+    87.5% { background-image: url('/assets/shots/9.jpg'); }
+  }
+
+  /* The app, on a quiet contact sheet of frames. */
+  .showcase { position: relative; height: 760px; display: grid; place-items: center; margin-top: 30px; }
+  #sheet { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .window {
+    position: relative; width: min(1000px, 92vw);
+    opacity: 0; transform: translateY(40px) scale(.96); filter: blur(8px);
+    transition: transform 1.1s var(--ease), opacity .9s var(--ease), filter .9s var(--ease);
+  }
+  .window img { width: 100%; height: auto; }
+  .seen .window { opacity: 1; transform: none; filter: none; }
+  body.alive .seen .window { transform: translateY(-8px) scale(1.01); }
+
+  /* Four points, one at a time. */
+  .points { max-width: 1180px; margin: 80px auto 0; padding: 0 46px; display: grid; gap: 140px; }
+  .point { display: grid; grid-template-columns: 1.25fr 1fr; gap: 80px; align-items: center; }
+  .point:nth-child(even) .visual { order: 2; }
+  .visual { position: relative; height: 440px; border-radius: 28px; background: var(--panel); overflow: hidden; display: grid; place-items: center; }
+  .label { margin: 0; font-size: 12px; line-height: 16px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--accent); }
+  .point h2 { margin: 14px 0 0; font-size: 40px; line-height: 44px; font-weight: 700; letter-spacing: -0.025em; }
+  .point p { margin: 16px 0 0; font-size: 18px; line-height: 26px; color: var(--muted); max-width: 400px; }
+  .copy > * { opacity: 0; transform: translateY(14px); filter: blur(6px); transition: all .9s var(--ease); }
+  .copy > :nth-child(2) { transition-delay: .08s; }
+  .copy > :nth-child(3) { transition-delay: .16s; }
+  .point.seen .copy > * { opacity: 1; transform: none; filter: none; }
+
+  .chip { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: 999px; font-size: 13px; font-weight: 600; background: var(--card); color: var(--ink); box-shadow: 0 4px 14px rgba(0,0,0,.10); }
+  .chip::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--hot); }
+
+  /* 1. Loading: frames fill a contact sheet while the count runs up. */
+  .load { width: 82%; }
+  .load-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 8px; }
+  .load-grid i { aspect-ratio: 3 / 2; border-radius: 6px; background: color-mix(in srgb, var(--ink) 7%, transparent) center / cover; }
+  .load-grid i.in { animation: develop .6s var(--ease) both; }
+  @keyframes develop { from { filter: blur(6px) brightness(1.6); opacity: 0; transform: scale(.9); } to { filter: none; opacity: 1; transform: none; } }
+  .load-track { height: 8px; border-radius: 99px; margin-top: 26px; background: color-mix(in srgb, var(--ink) 7%, transparent); overflow: hidden; }
+  .load-track b { display: block; height: 100%; width: 0; border-radius: 99px; background: linear-gradient(90deg, var(--gold), var(--accent)); }
+  .load-meta { display: flex; justify-content: space-between; margin-top: 10px; font-size: 13px; font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  /* 2. Keys: the strip answers each key. */
+  .keys { width: 88%; }
+  .strip { display: flex; gap: 10px; justify-content: center; height: 92px; align-items: center; }
+  .strip i {
+    width: 76px; flex: none; aspect-ratio: 3 / 2; border-radius: 8px; background: center / cover; opacity: .55;
+    transition: transform .45s var(--spring), opacity .3s ease, width .45s var(--ease), margin .45s var(--ease), box-shadow .3s ease;
+  }
+  .strip i.cur { opacity: 1; transform: scale(1.12); box-shadow: 0 0 0 2.5px var(--ink); }
+  .strip i.sel { opacity: 1; box-shadow: 0 0 0 3px var(--accent); }
+  .strip i.turn { transform: scale(1.12) rotate(90deg); }
+  .strip i.gone { width: 0; margin: 0 -5px; opacity: 0; transform: scale(.6) translateY(30px); }
+  .caps { display: flex; justify-content: center; gap: 10px; margin-top: 44px; }
+  .cap { min-width: 46px; height: 46px; padding: 0 12px; display: flex; align-items: center; justify-content: center; white-space: nowrap; border-radius: 11px; font-size: 17px; font-weight: 600; color: var(--ink);
+    background: var(--card); box-shadow: 0 2px 0 color-mix(in srgb, var(--ink) 14%, transparent), 0 0 0 1px color-mix(in srgb, var(--ink) 8%, transparent);
+    transition: transform .12s ease, box-shadow .12s ease, background .2s ease, color .2s ease; }
+  .cap.down { transform: translateY(2px); box-shadow: 0 0 0 color-mix(in srgb, var(--ink) 14%, transparent), 0 0 0 1px color-mix(in srgb, var(--ink) 8%, transparent); background: var(--accent); color: #fff; }
+  .cap small { font-size: 11px; font-weight: 600; margin-right: 4px; }
+  .keys-said { text-align: center; margin-top: 18px; height: 18px; font-size: 13px; font-weight: 500; color: var(--muted); }
+
+  /* 3. Flags: three shots, three misses called out. */
+  .misses { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; width: 88%; }
+  .miss { position: relative; }
+  .miss i { display: block; aspect-ratio: 3 / 2; border-radius: 10px; background: center / cover; }
+  .miss .chip { position: absolute; left: 10px; top: 10px; opacity: 0; transform: translateY(8px) scale(.9); filter: blur(4px); transition: all .6s var(--spring); }
+  .misses.play .miss .chip { opacity: 1; transform: none; filter: none; }
+  .misses.play .miss:nth-child(2) .chip { transition-delay: .25s; }
+  .misses.play .miss:nth-child(3) .chip { transition-delay: .5s; }
+  .blurry i { filter: blur(3px); }
+  .dark i { filter: brightness(.28); }
+  .bright i { filter: brightness(2.1) saturate(.6); }
+
+  /* 4. Photos: picked shots fly into an album. */
+  .album-scene { position: relative; width: 88%; height: 300px; }
+  .picks { display: flex; gap: 10px; justify-content: center; }
+  .picks i { width: 84px; aspect-ratio: 3 / 2; border-radius: 8px; background: center / cover; position: relative; transition: transform .9s var(--ease), opacity .7s var(--ease); }
+  .picks i::after { content: '✓'; position: absolute; top: 5px; right: 5px; width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center;
+    font-size: 11px; font-weight: 700; color: #fff; background: var(--accent); transform: scale(0); transition: transform .35s var(--spring); }
+  .picks i.on { box-shadow: 0 0 0 3px var(--accent); }
+  .picks i.on::after { transform: scale(1); }
+  .album { position: absolute; left: 50%; bottom: 0; width: 230px; margin-left: -115px; padding: 12px; border-radius: 18px; background: var(--card);
+    box-shadow: 0 20px 50px rgba(0,0,0,.14); display: grid; grid-template-columns: 64px 1fr; gap: 12px; align-items: center;
+    opacity: 0; transform: translateY(20px) scale(.95); transition: all .7s var(--spring); }
+  .album-scene.filed .album { opacity: 1; transform: none; }
+  .album .cover { width: 64px; height: 64px; border-radius: 10px; background: center / cover; }
+  .album b { display: block; font-size: 14px; }
+  .album span { display: block; margin-top: 3px; font-size: 12px; color: var(--muted); }
+
+  /* Footer */
+  .footer { display: flex; align-items: center; justify-content: space-between; max-width: 1440px; margin: 0 auto; padding: 160px 70px 110px 65px; }
+  .footer-brand { display: flex; align-items: center; gap: 20px; }
+  .footer-brand img { width: 79px; height: 79px; }
+  .footer-brand span { font-size: 30px; line-height: 36px; font-weight: 500; letter-spacing: -0.01em; }
+  .footer-brand small { display: block; margin-top: 4px; font-size: 14px; color: var(--muted); }
+  .footer .buttons { margin-top: 0; }
+  .legal { margin: 0; padding: 10px 20px; font-size: 12px; line-height: 16px; color: var(--faint); border-top: 1px dotted var(--line); }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition: none !important; animation: none !important; }
+    .copy > *, .window, .miss .chip, .album { opacity: 1 !important; transform: none !important; filter: none !important; }
+  }
+  @media (max-width: 900px) {
+    .nav { padding: 20px 16px; }
+    .hero { padding-top: 56px; }
+    .hero h1 { font-size: 44px; line-height: 48px; padding: 0 16px; }
+    .hero .sub { font-size: 20px; line-height: 26px; padding: 0 16px; }
+    .buttons { flex-direction: column; align-items: center; gap: 8px; margin-top: 36px; }
+    .btn { height: 45px; font-size: 14px; }
+    .btn-get, .btn-secondary { width: 190px; }
+    .showcase { height: auto; padding: 60px 0; }
+    .points { padding: 0 16px; gap: 80px; }
+    .point { grid-template-columns: 1fr; gap: 28px; }
+    .point:nth-child(even) .visual { order: 0; }
+    .visual { height: 360px; }
+    .point h2 { font-size: 32px; line-height: 36px; }
+    .load-grid { grid-template-columns: repeat(6, 1fr); }
+    .strip i { width: 44px; }
+    .cap { min-width: 38px; height: 38px; font-size: 14px; }
+    .misses { grid-template-columns: 1fr 1fr; }
+    .miss:nth-child(3) { display: none; }
+    .picks i { width: 52px; }
+    .footer { flex-direction: column; gap: 32px; padding: 100px 16px 72px; }
+  }
+</style>
+</head>
+<body>
+  <nav class="nav">
+    <a class="nav-brand" href="/"><picture><source srcset="/assets/icon-dark.png" media="(prefers-color-scheme: dark)"><img src="/assets/icon.png" alt=""></picture>Keeper</a>
+    <a class="nav-source" href="https://github.com/HMDRAMS-DEV/keeper" aria-label="Keeper on GitHub" title="Source on GitHub"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg></a>
+  </nav>
+
+  <header class="hero">
+    <h1>Sift a whole card before your coffee cools.</h1>
+    <p class="sub">Keeper is a Mac app for culling camera photos with the keyboard. Arrow through, delete the misses, send the keepers to Photos.</p>
+    <div class="buttons">
+      <a class="btn btn-get" href="https://github.com/HMDRAMS-DEV/keeper/releases/latest/download/Keeper.dmg" data-alive>
+        <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M11.2 8.5c0-1.6 1.3-2.4 1.4-2.4-.8-1.1-2-1.3-2.4-1.3-1-.1-2 .6-2.5.6s-1.3-.6-2.2-.6C4.4 4.8 3.3 5.5 2.7 6.6c-1.2 2.1-.3 5.2.9 6.9.6.8 1.2 1.7 2.1 1.7.9 0 1.2-.5 2.2-.5s1.3.5 2.2.5c.9 0 1.5-.8 2-1.7.6-.9.9-1.8.9-1.9 0 0-1.8-.7-1.8-3.1zM9.6 3.6c.5-.6.8-1.4.7-2.2-.7 0-1.5.5-2 1.1-.4.5-.8 1.3-.7 2.1.8.1 1.5-.4 2-1z"/></svg>
+        <span>Get Keeper</span>
+      </a>
+      <a class="btn btn-secondary" href="#how">How it works</a>
+    </div>
+  </header>
+
+  <section class="showcase point-like">
+    <canvas id="sheet" aria-hidden="true"></canvas>
+    <div class="window">
+      <picture>
+        <source srcset="/assets/app-dark.png" media="(prefers-color-scheme: dark)">
+        <img src="/assets/app-light.png" width="1432" height="1026" alt="Keeper showing a blurry landscape flagged Blurry, four shots selected, and Share, Photos Album, and Delete buttons.">
+      </picture>
+    </div>
+  </section>
+
+  <main class="points" id="how">
+    <section class="point">
+      <div class="visual">
+        <div class="load" data-loop="7000">
+          <div class="load-grid" aria-hidden="true"></div>
+          <div class="load-track"><b></b></div>
+          <div class="load-meta"><span class="load-count">0 of 1,284 photos</span><span>About 2 min left</span></div>
+        </div>
+      </div>
+      <div class="copy">
+        <p class="label">Load once</p>
+        <h2>A short wait, then no waiting.</h2>
+        <p>Plug in the card. Keeper reads every photo once and keeps a sharp preview on your Mac, so each arrow press is instant. Open the card again and it's ready at once.</p>
+      </div>
+    </section>
+
+    <section class="point">
+      <div class="visual">
+        <div class="keys" data-loop="6200">
+          <div class="strip" aria-hidden="true"></div>
+          <div class="caps" aria-hidden="true">
+            <span class="cap" data-k="left">←</span><span class="cap" data-k="right">→</span><span class="cap" data-k="shift"><small>⇧</small>→</span><span class="cap" data-k="r">R</span><span class="cap" data-k="del">⌫</span>
+          </div>
+          <div class="keys-said" aria-hidden="true"></div>
+        </div>
+      </div>
+      <div class="copy">
+        <p class="label">Keyboard first</p>
+        <h2>Every key does one thing.</h2>
+        <p>Arrows to move. Shift to select a run. R to rotate, losslessly. Delete sends the shot and its RAW to the Trash, and ⌘Z brings it back.</p>
+      </div>
+    </section>
+
+    <section class="point">
+      <div class="visual">
+        <div class="misses" data-loop="5200" aria-hidden="true">
+          <div class="miss blurry"><i style="background-image:url('/assets/shots/3.jpg')"></i><span class="chip">Blurry</span></div>
+          <div class="miss dark"><i style="background-image:url('/assets/shots/7.jpg')"></i><span class="chip">Too dark</span></div>
+          <div class="miss bright"><i style="background-image:url('/assets/shots/8.jpg')"></i><span class="chip">Too bright</span></div>
+        </div>
+      </div>
+      <div class="copy">
+        <p class="label">On-device smarts</p>
+        <h2>It spots the misses for you.</h2>
+        <p>Keeper checks every shot for blur and bad exposure, on your Mac. Press F to see only the flagged ones, select them all, and delete in one go.</p>
+      </div>
+    </section>
+
+    <section class="point">
+      <div class="visual">
+        <div class="album-scene" data-loop="6000" aria-hidden="true">
+          <div class="picks"></div>
+          <div class="album"><div class="cover" style="background-image:url('/assets/shots/4.jpg')"></div><div><b>Sigma BF · Sep 27</b><span>5 photos · in Photos</span></div></div>
+        </div>
+      </div>
+      <div class="copy">
+        <p class="label">Share the keepers</p>
+        <h2>Straight into a Photos album.</h2>
+        <p>Select the good ones and press P. Keeper makes the album and opens Photos on it, ready to share as a Shared Album. Or send them with AirDrop or Messages.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer" id="get">
+    <div class="footer-brand"><picture><source srcset="/assets/icon-dark.png" media="(prefers-color-scheme: dark)"><img src="/assets/icon.png" alt=""></picture>
+      <div><span>Keeper</span><small>Free and <a href="https://github.com/HMDRAMS-DEV/keeper" style="text-decoration: underline; text-underline-offset: 3px;">open source</a>. macOS 15 or later.</small></div>
+    </div>
+    <div class="buttons">
+      <a class="btn btn-get" href="https://github.com/HMDRAMS-DEV/keeper/releases/latest/download/Keeper.dmg" data-alive>
+        <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M11.2 8.5c0-1.6 1.3-2.4 1.4-2.4-.8-1.1-2-1.3-2.4-1.3-1-.1-2 .6-2.5.6s-1.3-.6-2.2-.6C4.4 4.8 3.3 5.5 2.7 6.6c-1.2 2.1-.3 5.2.9 6.9.6.8 1.2 1.7 2.1 1.7.9 0 1.2-.5 2.2-.5s1.3.5 2.2.5c.9 0 1.5-.8 2-1.7.6-.9.9-1.8.9-1.9 0 0-1.8-.7-1.8-3.1zM9.6 3.6c.5-.6.8-1.4.7-2.2-.7 0-1.5.5-2 1.1-.4.5-.8 1.3-.7 2.1.8.1 1.5-.4 2-1z"/></svg>
+        <span>Get Keeper</span>
+      </a>
+      <a class="btn btn-secondary" href="https://github.com/HMDRAMS-DEV/keeper"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg><span>View on GitHub</span></a>
+    </div>
+  </footer>
+  <p class="legal">Keeper is signed and notarized by Apple. Your photos never leave your Mac. Photos is a trademark of Apple Inc. Keeper is not affiliated with or endorsed by Apple.</p>
+
+<script>
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const rgb = hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
+const mix = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
+const str = (c, a = 1) => `rgba(${c.map(Math.round).join(',')},${a})`;
+const shot = n => `url('/assets/shots/${n}.jpg')`;
+
+// Behind the app: a contact sheet of empty frames with a slow ripple running through it.
+// Hovering "Get Keeper" warms it to golden hour and speeds it up.
+(() => {
+  const canvas = document.getElementById('sheet'), ctx = canvas.getContext('2d');
+  let w = 0, h = 0, life = 0, target = 0, t = 0, last = performance.now();
+  const resize = () => {
+    const dpr = devicePixelRatio || 1;
+    w = canvas.clientWidth; h = canvas.clientHeight;
+    canvas.width = w * dpr; canvas.height = h * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  };
+  const frame = now => {
+    const dt = Math.min(50, now - last); last = now;
+    life += (target - life) * Math.min(1, dt / 250);
+    t += dt / 1000 * (reduced ? 0 : 0.5 + life * 1.6);
+    const ink = rgb(css('--ink')), gold = rgb(css('--gold')), orange = rgb(css('--accent'));
+    const px = 30, py = 22, cx = w / 2, cy = h / 2, max = Math.min(w * 0.62, h * 1.1);
+    ctx.clearRect(0, 0, w, h);
+    for (let y = cy % py; y < h; y += py) {
+      for (let x = cx % px; x < w; x += px) {
+        const dx = x - cx, dy = (y - cy) * 1.4, d = Math.hypot(dx, dy);
+        const fade = 1 - d / max;
+        if (fade <= 0) continue;
+        const wave = .5 + .5 * Math.sin(d / 40 - t * 2.2);
+        const s = .45 + wave * .5 * fade;
+        const tint = mix(gold, orange, (Math.atan2(dy, dx) / Math.PI + 1) / 2);
+        ctx.strokeStyle = str(mix(ink, tint, life), (.08 + wave * .2) * fade * (1 + life * 1.4));
+        ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.roundRect(x - 9 * s, y - 6 * s, 18 * s, 12 * s, 2.5 * s); ctx.stroke();
+      }
+    }
+    requestAnimationFrame(frame);
+  };
+  document.querySelectorAll('[data-alive]').forEach(el => {
+    el.addEventListener('mouseenter', () => { target = 1; document.body.classList.add('alive'); });
+    el.addEventListener('mouseleave', () => { target = 0; document.body.classList.remove('alive'); });
+  });
+  addEventListener('resize', resize);
+  resize();
+  requestAnimationFrame(frame);
+})();
+
+// 1. Loading: frames develop one by one while the bar and count run up.
+const loadGrid = document.querySelector('.load-grid');
+for (let i = 0; i < 24; i++) loadGrid.appendChild(document.createElement('i'));
+
+// 2. Keys: a strip of shots and a script of key presses.
+const strip = document.querySelector('.strip');
+const resetStrip = () => {
+  strip.innerHTML = '';
+  [1, 2, 3, 4, 5, 9].forEach(n => { const i = document.createElement('i'); i.style.backgroundImage = shot(n); strip.appendChild(i); });
+};
+const script = [
+  ['right', 'Next shot', s => s.move(1)], ['right', 'Next shot', s => s.move(1)], ['r', 'Rotated, losslessly', s => s.turn()],
+  ['del', 'Moved to the Trash', s => s.drop()], ['shift', 'Selecting a run', s => s.extend()], ['shift', 'Selecting a run', s => s.extend()],
+];
+
+// 4. Photos: picks light up, then file into an album.
+const picks = document.querySelector('.picks');
+const resetPicks = () => {
+  picks.innerHTML = '';
+  [4, 5, 9, 11, 12].forEach(n => { const i = document.createElement('i'); i.style.backgroundImage = shot(n); picks.appendChild(i); });
+};
+
+const runners = {
+  load: el => {
+    const cells = [...loadGrid.children], bar = el.querySelector('b'), count = el.querySelector('.load-count');
+    cells.forEach(c => { c.classList.remove('in'); c.style.backgroundImage = ''; });
+    bar.style.transition = 'none'; bar.style.width = '0'; void bar.offsetWidth;
+    bar.style.transition = 'width 4.8s linear'; bar.style.width = '100%';
+    const start = performance.now();
+    const tick = () => {
+      const p = Math.min(1, (performance.now() - start) / 4800);
+      count.textContent = `${Math.round(p * 1284).toLocaleString()} of 1,284 photos`;
+      if (p < 1) timers.push(requestAnimationFrame(tick));
+    };
+    const timers = [];
+    tick();
+    cells.forEach((c, i) => timers.push(setTimeout(() => { c.style.backgroundImage = shot(i % 12 + 1); c.classList.add('in'); }, i * 190)));
+    return timers.map(id => () => { clearTimeout(id); cancelAnimationFrame(id); });
+  },
+  keys: el => {
+    resetStrip();
+    let cur = 0;
+    const frames = () => [...strip.children].filter(f => !f.classList.contains('gone'));
+    const paint = () => frames().forEach((f, i) => f.classList.toggle('cur', i === cur));
+    const state = {
+      move: d => { cur = Math.max(0, Math.min(frames().length - 1, cur + d)); frames().forEach(f => f.classList.remove('sel', 'turn')); paint(); },
+      turn: () => frames()[cur].classList.add('turn'),
+      drop: () => { frames()[cur].classList.add('gone'); paint(); },
+      extend: () => { frames()[cur].classList.add('sel'); cur = Math.min(frames().length - 1, cur + 1); frames()[cur].classList.add('sel'); paint(); },
+    };
+    paint();
+    const said = el.querySelector('.keys-said');
+    said.textContent = '';
+    return script.map(([key, words, act], i) => {
+      const id = setTimeout(() => {
+        const cap = el.querySelector(`[data-k="${key}"]`);
+        cap.classList.add('down');
+        setTimeout(() => cap.classList.remove('down'), 180);
+        act(state);
+        said.textContent = words;
+      }, 500 + i * 850);
+      return () => clearTimeout(id);
+    });
+  },
+  misses: el => {
+    el.classList.remove('play'); void el.offsetWidth;
+    const id = setTimeout(() => el.classList.add('play'), 400);
+    return [() => clearTimeout(id)];
+  },
+  'album-scene': el => {
+    resetPicks();
+    el.classList.remove('filed');
+    const items = [...picks.children];
+    const ids = items.map((p, i) => setTimeout(() => p.classList.add('on'), 400 + i * 260));
+    ids.push(setTimeout(() => {
+      const album = el.querySelector('.album').getBoundingClientRect();
+      items.forEach((p, i) => {
+        const r = p.getBoundingClientRect();
+        p.style.transitionDelay = `${i * 70}ms`;
+        p.style.transform = `translate(${album.left + 20 - r.left}px, ${album.top + 12 - r.top}px) scale(.5)`;
+        p.style.opacity = '0';
+      });
+      el.classList.add('filed');
+    }, 2200));
+    return ids.map(id => () => clearTimeout(id));
+  },
+};
+
+// Each visual runs while it's on screen and restarts on a loop.
+const loops = new Map();
+const io = new IntersectionObserver(entries => entries.forEach(({ target, isIntersecting }) => {
+  if (target.classList.contains('point') || target.classList.contains('showcase')) { if (isIntersecting) target.classList.add('seen'); return; }
+  const kind = Object.keys(runners).find(k => target.classList.contains(k));
+  if (isIntersecting && !loops.has(target)) {
+    if (reduced) { runners[kind](target); loops.set(target, 0); return; }
+    let stops = runners[kind](target);
+    loops.set(target, setInterval(() => { stops.forEach(stop => stop()); stops = runners[kind](target); }, Number(target.dataset.loop)));
+  } else if (!isIntersecting && loops.has(target) && !reduced) {
+    clearInterval(loops.get(target)); loops.delete(target);
+  }
+}), { threshold: .35 });
+document.querySelectorAll('.showcase, .point, .load, .keys, .misses, .album-scene').forEach(el => io.observe(el));
+</script>
+<!-- Vercel Web Analytics: page views, no cookies. Downloads are counted by GitHub. -->
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>

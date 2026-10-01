@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+  <channel>
+    <title>Keeper</title>
+    <link>https://keeper.ramihmd.com/appcast.xml</link>
+    <description>Keeper updates. scripts/release.sh adds each release below the marker.</description>
+    <language>en</language>
+    <!-- releases -->
+  </channel>
+</rss>
