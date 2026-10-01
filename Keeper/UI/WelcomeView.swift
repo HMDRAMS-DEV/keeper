@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Before anything is open: plugged-in cards, and a way to pick a folder.
+/// Before anything is open: plugged-in cards, recent folders, and a way to pick a folder.
 struct WelcomeView: View {
     @Environment(Library.self) private var library
 
@@ -10,47 +10,33 @@ struct WelcomeView: View {
                 .resizable()
                 .frame(width: 112, height: 112)
                 .padding(.bottom, 18)
-            Text("Sift a card in minutes.")
+            Text("Open a card or folder")
                 .display(34)
                 .foregroundStyle(Theme.ink)
-            Text("Keeper reads every photo once. Then it's arrow keys,\nDelete for the misses, and a Photos album for the keepers.")
+            Text("Keeper loads every photo once. Then go through them with\nthe arrow keys, delete the misses, and keep the rest.")
                 .font(.system(size: 14))
                 .foregroundStyle(Theme.muted)
                 .multilineTextAlignment(.center)
                 .lineSpacing(3)
                 .padding(.top, 10)
 
-            VStack(spacing: 10) {
+            VStack(spacing: 8) {
                 ForEach(library.cards) { card in
-                    Button {
+                    SourceRow(symbol: "sdcard.fill", title: card.name, detail: "Plugged in", highlighted: true) {
                         library.open(card.root, name: card.name)
-                    } label: {
-                        HStack(spacing: 14) {
-                            Image(systemName: "sdcard.fill")
-                                .font(.system(size: 20))
-                                .foregroundStyle(Theme.accent)
-                                .frame(width: 40, height: 40)
-                                .background(Theme.accent.opacity(0.14), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(card.name).font(.system(size: 14, weight: .semibold)).foregroundStyle(Theme.ink)
-                                Text("Plugged in").font(.system(size: 12)).foregroundStyle(Theme.muted)
-                            }
-                            Spacer()
-                            Text("Open").font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.accent)
-                        }
-                        .padding(12)
-                        .frame(width: 380)
-                        .background(Theme.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                        .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                     }
-                    .buttonStyle(.plain)
+                }
+                ForEach(library.recents.filter { recent in !library.cards.contains { $0.root.path == recent.path } }.prefix(5)) { recent in
+                    SourceRow(symbol: "folder.fill", title: recent.name, detail: (recent.url.deletingLastPathComponent().path as NSString).abbreviatingWithTildeInPath) {
+                        library.open(recent.url, name: recent.name)
+                    }
                 }
             }
             .padding(.top, 30)
 
             Button("Choose a Folder…") { library.chooseFolder() }
                 .buttonStyle(PillButtonStyle(prominent: library.cards.isEmpty))
-                .padding(.top, library.cards.isEmpty ? 30 : 16)
+                .padding(.top, library.cards.isEmpty && library.recents.isEmpty ? 30 : 18)
             Text("or drop one here · ⌘O")
                 .font(.system(size: 12))
                 .foregroundStyle(Theme.muted)
@@ -58,5 +44,43 @@ struct WelcomeView: View {
         }
         .padding(40)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+/// A card or folder you can open with one click.
+struct SourceRow: View {
+    let symbol: String
+    let title: String
+    let detail: String
+    var highlighted = false
+    let action: () -> Void
+
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 14) {
+                Image(systemName: symbol)
+                    .font(.system(size: 18))
+                    .foregroundStyle(highlighted ? Theme.accent : Theme.muted)
+                    .frame(width: 38, height: 38)
+                    .background(highlighted ? Theme.accent.opacity(0.14) : Theme.quietWash, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).font(.system(size: 14, weight: .semibold)).foregroundStyle(Theme.ink).lineLimit(1)
+                    Text(detail).font(.system(size: 12)).foregroundStyle(Theme.muted).lineLimit(1).truncationMode(.middle)
+                }
+                Spacer()
+                Text("Open")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Theme.accent)
+                    .opacity(highlighted || hovering ? 1 : 0)
+            }
+            .padding(10)
+            .frame(width: 400)
+            .background(hovering || highlighted ? Theme.card : .clear, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
     }
 }

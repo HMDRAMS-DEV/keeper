@@ -33,11 +33,13 @@ final class Library {
     private(set) var selection: Set<Photo.ID> = []
     private var anchor: Photo.ID?
     private(set) var cards = Cards.mounted()
+    /// Folders opened before, newest first. Only ones that are still there.
+    private(set) var recents: [Recent] = Recent.load()
     /// A short line about the last action, shown for a few seconds.
     private(set) var notice: String?
     var zoomed = false
     /// The sheet that names a new Photos album is open.
-    var askingForAlbum = false
+    var askingForPhotos = false
 
     @ObservationIgnored private var loadTask: Task<Void, Never>?
     @ObservationIgnored private var noticeTask: Task<Void, Never>?
@@ -47,7 +49,10 @@ final class Library {
         let center = NSWorkspace.shared.notificationCenter
         for name in [NSWorkspace.didMountNotification, NSWorkspace.didUnmountNotification] {
             center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated { self?.cards = Cards.mounted() }
+                MainActor.assumeIsolated {
+                    self?.cards = Cards.mounted()
+                    self?.recents = Recent.load()
+                }
             }
         }
         Task.detached(priority: .background) { Previews.prune() }
@@ -60,6 +65,7 @@ final class Library {
         self.currentID = photos.first?.id
         self.phase = photos.isEmpty ? .empty : .ready
         self.cards = []
+        self.recents = []
     }
 
     // MARK: - Derived
@@ -137,6 +143,7 @@ final class Library {
             self.zoomed = false
             self.currentID = self.photos.first?.id
             self.phase = .ready
+            self.recents = Recent.remember(root, name: label)
             if shots.count > loaded.count {
                 self.say("\(shots.count - loaded.count) files couldn't be read.")
             }
@@ -146,6 +153,22 @@ final class Library {
     func cancelLoading() {
         loadTask?.cancel()
         phase = photos.isEmpty ? .empty : .ready
+    }
+
+    /// Closes the open folder and goes back to the start screen. Deleted photos stay in the Trash.
+    func close() {
+        loadTask?.cancel()
+        photos = []
+        source = nil
+        sourceName = ""
+        selection = []
+        anchor = nil
+        currentID = nil
+        undoStack = []
+        zoomed = false
+        filter = .all
+        recents = Recent.load()
+        phase = .empty
     }
 
     private func update(_ change: (inout Loading) -> Void) {
@@ -311,14 +334,19 @@ final class Library {
         }
     }
 
-    func makeAlbum(named name: String) {
+    /// Adds the targets to Photos. With an album name, they also go in a new album.
+    func addToPhotos(album name: String?) {
         let picked = targets
         guard !picked.isEmpty else { return }
         say("Adding \(picked.count) to Photos…", sticky: true)
         Task {
             do {
-                let album = try await PhotosAlbum.make(named: name, from: picked)
-                say("Made “\(name)” in Photos. To share it, select all, then Share > Shared Albums.", seconds: 10)
+                let album = try await PhotosAlbum.add(picked, toAlbum: name)
+                if let name {
+                    say("Made “\(name)” in Photos. To share it, select all, then Share > Shared Albums.", seconds: 10)
+                } else {
+                    say("Added \(Format.count(picked.count)) to Photos.", seconds: 6)
+                }
                 PhotosAlbum.reveal(album)
             } catch {
                 say(error.localizedDescription, seconds: 8)
@@ -335,5 +363,30 @@ final class Library {
             guard !Task.isCancelled else { return }
             self?.notice = nil
         }
+    }
+}
+
+/// A folder opened before.
+struct Recent: Codable, Hashable, Identifiable {
+    let path: String
+    let name: String
+    var id: String { path }
+    var url: URL { URL(fileURLWithPath: path) }
+
+    private static let key = "recentFolders"
+
+    static func load() -> [Recent] {
+        guard let data = UserDefaults.standard.data(forKey: key),
+              let all = try? JSONDecoder().decode([Recent].self, from: data) else { return [] }
+        return all.filter { FileManager.default.fileExists(atPath: $0.path) }
+    }
+
+    static func remember(_ url: URL, name: String) -> [Recent] {
+        var all = (try? JSONDecoder().decode([Recent].self, from: UserDefaults.standard.data(forKey: key) ?? Data())) ?? []
+        all.removeAll { $0.path == url.path }
+        all.insert(Recent(path: url.path, name: name), at: 0)
+        all = Array(all.prefix(8))
+        UserDefaults.standard.set(try? JSONEncoder().encode(all), forKey: key)
+        return all.filter { FileManager.default.fileExists(atPath: $0.path) }
     }
 }

@@ -19,16 +19,17 @@ Keeper is a Mac app for culling camera photos with the keyboard. Open a memory c
 | ⌘Z | Put back the last delete |
 | Z or space | Zoom to 100% |
 | F | Show only flagged photos |
-| P | Make a Photos album from the selection |
+| P | Add the selection to your Photos library |
+| ⇧P | Add the selection to a new Photos album |
 | ⌘O | Open a card or folder |
 
 ## What it does to your files
 
 - **Loading** reads each photo once and saves a 2560 px preview, a thumbnail, and its quality check in `~/Library/Caches/com.ramihmd.keeper`. Opening the same card again is instant. Previews nobody opened in 14 days are removed.
-- **RAW + JPEG** files with the same name are one shot. You see the JPEG. Delete and Photos albums take both.
+- **RAW + JPEG** files with the same name are one shot. You see the JPEG. Delete and Add to Photos take both.
 - **Delete** moves files into the Mac's Trash. Files on a card move off the card, so the space frees up right away. ⌘Z puts them back.
 - **Rotate** changes only the orientation tag: two bytes in a JPEG, or a lossless rewrite for HEIC, PNG, and TIFF. RAW files can't be rotated in place, so their turn shows in Keeper only.
-- **Photos album** imports the selection into a new album and opens Photos on it. Apple doesn't let apps create Shared Albums, so share it from Photos: select all, then Share > Shared Albums. The Share button covers AirDrop, Messages, and Mail.
+- **Add to Photos** imports the selection into your Photos library. **New Album** imports it into a new album and opens Photos on it. Apple doesn't let apps create Shared Albums, so share it from Photos: select all, then Share > Shared Albums. The Share button covers AirDrop, Messages, and Mail.
 
 ## Flags
 

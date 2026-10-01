@@ -23,7 +23,7 @@ struct KeyMonitor: ViewModifier {
     }
 
     private func handle(_ event: NSEvent) -> Bool {
-        if event.window?.isSheet == true || event.window?.firstResponder is NSText || library.askingForAlbum { return false }
+        if event.window?.isSheet == true || event.window?.firstResponder is NSText || library.askingForPhotos { return false }
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         let shift = flags.contains(.shift)
         let command = flags.contains(.command)
@@ -53,7 +53,9 @@ struct KeyMonitor: ViewModifier {
             case "r": library.rotate(clockwise: !shift)
             case "z", " ": library.zoomed.toggle()
             case "f": library.filter = library.filter == .all ? .flagged : .all
-            case "p": if !library.targets.isEmpty { library.askingForAlbum = true }
+            case "p":
+                guard !library.targets.isEmpty else { break }
+                if shift { library.askingForPhotos = true } else { library.addToPhotos(album: nil) }
             default: return false
             }
         }

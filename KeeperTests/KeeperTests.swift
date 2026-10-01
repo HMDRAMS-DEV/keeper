@@ -119,3 +119,16 @@ struct LibraryTests {
         #expect(library.flaggedCount == 1)
     }
 }
+
+@MainActor
+struct CloseTests {
+    @Test func closeGoesBackToStart() {
+        let library = Library(preview: (0..<3).map { Fixtures.photo($0) })
+        library.click(Fixtures.photo(1).id, command: true)
+        library.close()
+        #expect(library.phase == .empty)
+        #expect(library.photos.isEmpty)
+        #expect(library.selection.isEmpty)
+        #expect(library.currentID == nil)
+    }
+}

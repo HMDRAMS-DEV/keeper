@@ -29,7 +29,7 @@ struct ReviewView: View {
             Legend()
         }
         .modifier(KeyMonitor(library: library))
-        .sheet(isPresented: $library.askingForAlbum) { AlbumSheet() }
+        .sheet(isPresented: $library.askingForPhotos) { AlbumSheet() }
         .onChange(of: library.currentID, initial: true) { prefetch() }
     }
 
@@ -49,10 +49,37 @@ struct TopBar: View {
     var body: some View {
         HStack(spacing: 14) {
             Wordmark(size: 18)
-            Text("\(library.sourceName) · \(Format.count(library.photos.count))")
+            Menu {
+                Button("Open Another Folder…") { library.chooseFolder() }
+                let others = library.recents.filter { $0.path != library.source?.path }.prefix(6)
+                if !others.isEmpty {
+                    Section("Recent") {
+                        ForEach(others) { recent in
+                            Button(recent.name) { library.open(recent.url, name: recent.name) }
+                        }
+                    }
+                }
+                Divider()
+                Button("Close \(library.sourceName)") { library.close() }
+            } label: {
+                HStack(spacing: 5) {
+                    Text(library.sourceName).foregroundStyle(Theme.ink)
+                    Text("· \(Format.count(library.photos.count))")
+                    Image(systemName: "chevron.down").font(.system(size: 9, weight: .bold))
+                }
                 .font(.system(size: 12.5, weight: .medium))
                 .foregroundStyle(Theme.muted)
                 .lineLimit(1)
+                .padding(.horizontal, 10)
+                .frame(height: 26)
+                .background(Theme.quietWash, in: Capsule())
+                .contentShape(Capsule())
+            }
+            .menuStyle(.button)
+            .buttonStyle(.plain)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .help("Switch folders, or close this one")
             Spacer()
             if let version = updater.available {
                 Button("Update to \(version)") { updater.check() }
@@ -73,7 +100,7 @@ struct TopBar: View {
             .padding(3)
             .background(Theme.quietWash, in: Capsule())
             .help("Flagged photos look blurry, too dark, too bright, or weak. Press F to switch.")
-            IconButton(symbol: "folder", help: "Open a card or folder (⌘O)") { library.chooseFolder() }
+            IconButton(symbol: "xmark", help: "Close this folder (⇧⌘W)") { library.close() }
         }
         .padding(.leading, 84)
         .padding(.trailing, 14)
@@ -300,12 +327,19 @@ struct SelectionBar: View {
             .buttonStyle(PillButtonStyle(prominent: false))
             .help("AirDrop, Messages, or Mail")
             Button {
-                library.askingForAlbum = true
+                library.addToPhotos(album: nil)
             } label: {
-                Label("Photos Album", systemImage: "rectangle.stack.badge.plus")
+                Label("Add to Photos", systemImage: "photo.badge.plus")
             }
             .buttonStyle(PillButtonStyle())
-            .help("Make an album in Photos (P)")
+            .help("Add to your Photos library (P)")
+            Button {
+                library.askingForPhotos = true
+            } label: {
+                Label("New Album", systemImage: "rectangle.stack.badge.plus")
+            }
+            .buttonStyle(PillButtonStyle())
+            .help("Make a new album in Photos (⇧P)")
             Button {
                 library.deleteTargets()
             } label: {
@@ -331,7 +365,8 @@ struct Legend: View {
             KeyCap(key: "R", label: "Rotate")
             KeyCap(key: "⌫", label: "Delete")
             KeyCap(key: "Z", label: "Zoom")
-            KeyCap(key: "P", label: "Photos album")
+            KeyCap(key: "P", label: "Add to Photos")
+            KeyCap(key: "⇧P", label: "Album")
             KeyCap(key: "F", label: "Flagged")
             KeyCap(key: "⌘Z", label: "Undo")
             Spacer()
@@ -363,16 +398,16 @@ struct AlbumSheet: View {
                 .fixedSize(horizontal: false, vertical: true)
             TextField("Album name", text: $name)
                 .textFieldStyle(.roundedBorder)
-                .onSubmit(create)
+                .onSubmit(add)
             HStack {
                 Spacer()
                 Button("Cancel") { dismiss() }
                     .keyboardShortcut(.cancelAction)
                     .buttonStyle(PillButtonStyle(prominent: false))
-                Button("Add \(Format.count(count))", action: create)
+                Button("Add \(Format.count(count))", action: add)
                     .keyboardShortcut(.defaultAction)
                     .buttonStyle(PillButtonStyle())
-                    .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .disabled(trimmed.isEmpty)
             }
         }
         .padding(24)
@@ -383,10 +418,11 @@ struct AlbumSheet: View {
         }
     }
 
-    private func create() {
-        let trimmed = name.trimmingCharacters(in: .whitespaces)
+    private var trimmed: String { name.trimmingCharacters(in: .whitespaces) }
+
+    private func add() {
         guard !trimmed.isEmpty else { return }
         dismiss()
-        library.makeAlbum(named: trimmed)
+        library.addToPhotos(album: trimmed)
     }
 }

@@ -23,6 +23,9 @@ struct KeeperApp: App {
                 if let card = library.newCard {
                     Button("Open \(card.name)") { library.open(card.root, name: card.name) }
                 }
+                Button("Close Folder") { library.close() }
+                    .keyboardShortcut("w", modifiers: [.command, .shift])
+                    .disabled(library.phase == .empty)
             }
         }
     }
